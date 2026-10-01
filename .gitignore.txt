@@ -1,0 +1,78 @@
+# ============================================================
+# Smart Attendance – .gitignore
+# Covers the Node/Express server, the web client and the
+# Expo (React Native) mobile app in /mobile
+# ============================================================
+
+# ---------- Dependencies ----------
+node_modules/
+mobile/node_modules/
+
+# ---------- Secrets & environment files ----------
+# NEVER commit real credentials. Keep only the *.example files.
+.env
+.env.*
+!.env.example
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.mobileprovision
+
+# ---------- Database (runtime data, backups, WAL files) ----------
+database/*.db
+database/*.db-journal
+database/*.db-wal
+database/*.db-shm
+database/*.sqlite
+database/*.sqlite3
+database/backups/
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# ---------- Logs ----------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---------- Expo / React Native (mobile app) ----------
+mobile/.expo/
+.expo/
+mobile/dist/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+.kotlin/
+*.orig.*
+*.tsbuildinfo
+mobile/ios/
+mobile/android/
+
+# ---------- Build output & caches ----------
+build/
+coverage/
+.cache/
+.parcel-cache/
+.eslintcache
+*.tgz
+
+# ---------- Editor / IDE ----------
+.vscode/*
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- OS files ---------

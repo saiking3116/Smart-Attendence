@@ -1,0 +1,27 @@
+{
+  "name": "smart-attendance",
+  "version": "1.0.0",
+  "description": "Smart Attendance Management Platform - full-stack demo app",
+  "main": "server/server.js",
+  "scripts": {
+    "seed": "node server/seed.js",
+    "dev": "node server/server.js",
+    "start": "node server/server.js",
+    "setup": "npm install && npm run seed"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^10.0.0",
+    "otplib": "^12.0.1",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.23.0",
+    "uuid": "^9.0.1"
+  }
+}

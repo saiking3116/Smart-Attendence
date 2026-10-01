@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMV Smart Attendance</title>
+<script>
+// applied before first paint to avoid a flash of the wrong theme
+(function(){
+  try {
+    var saved = localStorage.getItem('sa_theme');
+    var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {}
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* brand accents — constant across themes */
+  --chrome:#12172B;
+  --chrome-soft:#1D2340;
+  --verify:#1FAB6F;
+  --amber:#E8A33D;
+  --red:#E0554F;
+
+  /* light theme (default) */
+  --ink:#12172B;
+  --paper:#F6F7FA;
+  --card:#FFFFFF;
+  --verify-soft:#E4F7ED;
+  --amber-soft:#FCF1DD;
+  --red-soft:#FBEAE9;
+  --slate:#5B6478;
+  --slate-dim:#959CAC;
+  --line:#E4E7EE;
+  --shadow: 0 1px 2px rgba(18,23,43,.04), 0 8px 24px -12px rgba(18,23,43,.12);
+  --card-glass:rgba(255,255,255,.6);
+  --card-glass-border:rgba(255,255,255,.45);
+}
+html[data-theme="dark"]{
+  --ink:#EDEFF5;
+  --paper:#0E1120;
+  --card:#171B2E;
+  --verify-soft:rgba(46,204,143,.16);
+  --amber-soft:rgba(240,179,79,.16);
+  --red-soft:rgba(241,107,101,.16);
+  --slate:#AAB0C4;
+  --slate-dim:#6E7490;
+  --line:#2A2F45;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+  --card-glass:rgba(15,18,32,.5);
+  --card-glass-border:rgba(255,255,255,.12);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;}
+::selection{background:var(--verify-soft);}
+
+/* ---------- Focus ring ---------- */
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible{
+  outline:2px solid var(--verify); outline-offset:2px;
+}
+
+/* ================= LOGIN ================= */
+#login-screen{
+  min-height:100vh; width:100vw; display:flex; align-items:center; justify-content:center;
+  padding:24px; position:relative; box-sizing:border-box;
+  background-image:url('/assets/smvec-college-front.jpg');
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+}
+.login-wrap{
+  display:flex; align-items:center; justify-content:center; width:100%; max-width:1180px; margin:auto;
+}
+
+.login-form-side{
+  display:flex; flex-direction:column; justify-content:center; padding:56px 64px;
+  width:100%; max-width:460px; margin:0 auto;
+  background:var(--card-glass); border:1px solid var(--card-glass-border); border-radius:20px;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+}
+.brandmark{display:flex; align-items:center; gap:10px; margin-bottom:48px;}
+.brand-logo{
+  width:34px;height:34px;border-radius:9px;background:#fff;padding:3px;
+  box-sizing:border-box;object-fit:contain;flex-shrink:0;
+}
+.brand-word{font-weight:700;font-size:17px;letter-spacing:-0.01em;}
+.brand-sub{font-size:11.5px;color:var(--slate);margin-top:2px;letter-spacing:.01em;}
+
+.login-form-side h1{font-size:32px;font-weight:600;line-height:1.15;margin:0 0 8px;letter-spacing:-0.01em;}
+.login-form-side p.lede{color:var(--slate);font-size:14.5px;margin:0 0 32px;max-width:380px;line-height:1.55;}
+
+.role-pills{display:flex;gap:8px;margin-bottom:26px;}
+.role-pill{
+  flex:1; padding:10px 6px; border-radius:10px; border:1px solid var(--line); background:var(--card);
+  font-size:13px; font-weight:600; color:var(--slate); text-align:center; transition:.15s;
+}
+.role-pill.active{background:var(--chrome); color:#fff; border-color:var(--chrome);}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--slate);margin-bottom:6px;letter-spacing:.01em;}
+.field input{
+  width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+  background:var(--card); font-size:14px; color:var(--ink); font-family:'IBM Plex Mono',monospace;
+}
+.field input::placeholder{color:var(--slate-dim); font-family:'Inter',sans-serif;}
+
+.btn-primary{
+  width:100%; padding:13px; border-radius:10px; border:none; background:var(--chrome); color:#fff;
+  font-weight:600; font-size:14.5px; margin-top:8px; transition:.15s; display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-primary:hover{background:var(--chrome-soft);}
+.login-hint{margin-top:18px; font-size:12px; color:var(--slate-dim); text-align:center;}
+.signup-link-row{margin-top:14px; text-align:center; font-size:13px; color:var(--slate-dim);}
+.signup-link-row a,.signup-link-row button{color:var(--verify); font-weight:600; background:none; border:none; cursor:pointer; font-size:13px; text-decoration:underline; padding:0;}
+
+/* ---- Signup panel ---- */
+#signup-panel{display:none;}
+#signup-panel h1{font-size:28px;font-weight:600;line-height:1.15;margin:0 0 6px;letter-spacing:-0.01em;}
+#signup-panel p.lede{color:var(--slate);font-size:14px;margin:0 0 24px;max-width:380px;line-height:1.5;}
+.signup-role-tabs{display:flex;gap:8px;margin-bottom:22px;}
+.signup-role-tab{flex:1;padding:10px 6px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--slate);text-align:center;transition:.15s;}
+.signup-role-tab.active{background:var(--chrome);color:#fff;border-color:var(--chrome);}
+#signup-error{display:none;}
+#signup-success{display:none;background:var(--verify-soft);color:var(--verify);padding:12px 14px;border-radius:9px;font-size:13px;font-weight:600;margin-bottom:14px;}
+.field input:focus{outline:2px solid var(--verify);border-color:var(--verify);}
+
+.scan-frame{
+  width:260px;height:260px;position:relative;z-index:1;
+}
+.scan-frame .corner{position:absolute;width:34px;height:34px;border:2.5px solid var(--verify);}
+.scan-frame .corner.tl{top:0;left:0;border-right:none;border-bottom:none;border-radius:6px 0 0 0;}
+.scan-frame .corner.tr{top:0;right:0;border-left:none;border-bottom:none;border-radius:0 6px 0 0;}
+.scan-frame .corner.bl{bottom:0;left:0;border-right:none;border-top:none;border-radius:0 0 0 6px;}
+.scan-frame .corner.br{bottom:0;right:0;border-left:none;border-top:none;border-radius:0 0 6px 0;}
+.scan-face{
+  position:absolute; inset:38px; border-radius:50% / 46%;
+  border:1.5px dashed rgba(255,255,255,.18);
+}
+.scan-line{
+  position:absolute; left:6px; right:6px; height:2px; background:linear-gradient(90deg, transparent, var(--verify), transparent);
+  top:10%; animation: scanmove 2.6s ease-in-out infinite; box-shadow:0 0 12px 1px rgba(31,171,111,.7);
+}
+@keyframes scanmove{ 0%{top:8%;} 50%{top:88%;} 100%{top:8%;} }
+
+/* ================= APP SHELL ================= */
+#app-screen{display:none; min-height:100vh;}
+.shell{display:grid; grid-template-columns:240px 1fr; min-height:100vh;}
+
+.mobile-nav{display:none;}
+@media(max-width:780px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{display:none;}
+  .mobile-nav{
+    display:flex; gap:6px; overflow-x:auto; padding:10px 14px;
+    background:var(--chrome); position:sticky; top:0; z-index:6; -webkit-overflow-scrolling:touch;
+  }
+  .mobile-nav .m-item{
+    flex:0 0 auto; padding:9px 14px; border-radius:20px; border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.06); color:rgba(255,255,255,.72); font-size:13px; font-weight:600; white-space:nowrap;
+  }
+  .mobile-nav .m-item.active{background:var(--verify); border-color:var(--verify); color:#fff;}
+  .mobile-signout{flex:0 0 auto; padding:9px 14px; border-radius:20px; border:1px solid rgba(255,255,255,.14); background:transparent; color:rgba(255,255,255,.5); font-size:13px;}
+}
+
+.sidebar{
+  background:var(--chrome); color:#fff; display:flex; flex-direction:column; padding:22px 16px;
+  position:sticky; top:0; height:100vh;
+}
+.sidebar .brandmark{margin-bottom:34px; padding-left:4px;}
+.sidebar .brand-word{color:#fff;}
+.nav-section-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;color:rgba(255,255,255,.35);margin:18px 8px 8px;}
+.nav-item{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; border:none; background:transparent;
+  color:rgba(255,255,255,.72); font-size:13.5px; font-weight:500; text-align:left; width:100%; margin-bottom:2px; transition:.12s;
+}
+.nav-item .ic{width:16px;text-align:center;font-size:14px;}
+.nav-item:hover{background:rgba(255,255,255,.06); color:#fff;}
+.nav-item.active{background:rgba(31,171,111,.16); color:#fff;}
+.nav-item.active .ic{color:var(--verify);}
+.sidebar-foot{margin-top:auto; border-top:1px solid rgba(255,255,255,.1); padding-top:14px;}
+.user-chip{display:flex; align-items:center; gap:10px; padding:8px; border-radius:10px;}
+.avatar{
+  width:34px;height:34px;border-radius:9px;background:var(--verify-soft);color:var(--verify);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;
+}
+.user-chip .name{font-size:13px;font-weight:600;color:#fff;}
+.user-chip .role{font-size:11px;color:rgba(255,255,255,.45);font-family:'IBM Plex Mono',monospace;}
+.signout-btn{width:100%;margin-top:10px;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.6);font-size:12.5px;font-weight:500;}
+.signout-btn:hover{color:#fff;border-color:rgba(255,255,255,.3);}
+
+.main{padding:0; overflow-x:hidden;}
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; padding:20px 32px;
+  border-bottom:1px solid var(--line); background:var(--card); position:sticky; top:0; z-index:5;
+}
+.topbar h2{font-size:19px; font-weight:600; margin:0;}
+.topbar .sub{font-size:12.5px; color:var(--slate); margin-top:2px;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.pill-date{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--slate);background:var(--paper);padding:6px 10px;border-radius:20px;border:1px solid var(--line);}
+
+.content{padding:28px 32px 60px;}
+
+/* ---- generic components ---- */
+.grid{display:grid;gap:18px;}
+.g-4{grid-template-columns:repeat(4,1fr);}
+.g-3{grid-template-columns:repeat(3,1fr);}
+.g-2{grid-template-columns:1.3fr 1fr;}
+@media(max-width:1000px){.g-4{grid-template-columns:repeat(2,1fr);} .g-3{grid-template-columns:1fr;} .g-2{grid-template-columns:1fr;}}
+
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:var(--shadow);}
+.card h3{font-size:14px; margin:0 0 4px; font-weight:600;}
+.card .cap{font-size:12px; color:var(--slate); margin:0 0 14px;}
+
+.kpi .kpi-label{font-size:12px;color:var(--slate);font-weight:600;letter-spacing:.02em;}
+.kpi .kpi-value{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:600;margin:6px 0 4px;}
+.kpi .kpi-delta{font-size:11.5px; font-family:'IBM Plex Mono',monospace;}
+.kpi .kpi-delta.up{color:var(--verify);}
+.kpi .kpi-delta.down{color:var(--red);}
+
+.badge{display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:20px; font-size:11.5px; font-weight:600;}
+.badge.green{background:var(--verify-soft); color:var(--verify);}
+.badge.amber{background:var(--amber-soft); color:#9c6a12;}
+.badge.red{background:var(--red-soft); color:var(--red);}
+.badge.slate{background:var(--paper); color:var(--slate); border:1px solid var(--line);}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--slate-dim); text-align:left; padding:8px 10px; font-weight:600; border-bottom:1px solid var(--line);}
+td{font-size:13.5px; padding:11px 10px; border-bottom:1px solid var(--line); color:var(--ink);}
+tr:last-child td{border-bottom:none;}
+td.mono, th.mono{font-family:'IBM Plex Mono',monospace;}
+tr.rowhover:hover td{background:var(--paper);}
+
+.btn-sm{padding:7px 13px; border-radius:8px; border:1px solid var(--line); background:var(--card); font-size:12.5px; font-weight:600; color:var(--ink);}
+.btn-sm:hover{border-color:var(--ink);}
+.btn-dark{background:var(--chrome); color:#fff; border-color:var(--chrome);}
+.btn-dark:hover{background:var(--chrome-soft);}
+.btn-verify{background:var(--verify); color:#fff; border-color:var(--verify);}
+.btn-verify:hover{background:#188a5a;}
+
+.bar-row{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+.bar-row:last-child{margin-bottom:0;}
+.bar-label{width:118px; font-size:12.5px; color:var(--slate); flex-shrink:0;}
+.bar-track{flex:1; height:9px; background:var(--paper); border-radius:6px; overflow:hidden; border:1px solid var(--line);}
+.bar-fill{height:100%; border-radius:6px; background:var(--verify);}
+.bar-fill.amber{background:var(--amber);}
+.bar-fill.red{background:var(--red);}
+.bar-val{width:38px; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); flex-shrink:0;}
+
+.ring-wrap{display:flex; align-items:center; gap:20px;}
+.ring-num{font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:700;}
+
+.tabs{display:flex; gap:6px; margin-bottom:18px; border-bottom:1px solid var(--line);}
+.tab-btn{padding:10px 4px; margin-right:18px; background:none; border:none; border-bottom:2px solid transparent; font-size:13.5px; font-weight:600; color:var(--slate);}
+.tab-btn.active{color:var(--ink); border-color:var(--verify);}
+
+.toggle{width:38px;height:22px;border-radius:20px;background:var(--line);position:relative;border:none;flex-shrink:0;}
+.toggle.on{background:var(--verify);}
+.toggle .knob{position:absolute; top:2px; left:2px; width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s; box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle.on .knob{left:18px;}
+
+/* ---- scan panel (student mark-attendance / faculty take-attendance) ---- */
+.scan-panel{background:var(--chrome); border-radius:16px; padding:30px; display:flex; flex-direction:column; align-items:center; position:relative; overflow:hidden;}
+.scan-panel::before{content:"";position:absolute;inset:0;background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 0); background-size:20px 20px;}
+.scan-status{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.12em; color:var(--verify); margin-top:20px; z-index:1; text-align:center;}
+.scan-status.idle{color:rgba(255,255,255,.4);}
+.scan-status.fail{color:var(--red);}
+.scan-result{z-index:1; text-align:center; margin-top:6px;}
+.scan-result h3{color:#fff; margin:8px 0 4px;}
+.scan-result p{color:rgba(255,255,255,.5); font-size:12.5px; margin:0;}
+.check-badge{width:56px;height:56px;border-radius:50%;background:var(--verify-soft);display:flex;align-items:center;justify-content:center;margin:14px auto 0;z-index:1; color:var(--verify); font-size:26px;}
+
+.timeline{position:relative; margin-left:6px;}
+.timeline .tl-item{position:relative; padding-left:22px; padding-bottom:18px; border-left:1.5px solid var(--line);}
+.timeline .tl-item:last-child{border-color:transparent; padding-bottom:0;}
+.timeline .tl-dot{position:absolute; left:-5.5px; top:2px; width:9px;height:9px;border-radius:50%;background:var(--verify); border:2px solid var(--card);}
+.timeline .tl-dot.amber{background:var(--amber);}
+.timeline .tl-dot.red{background:var(--red);}
+.tl-title{font-size:13px; font-weight:600;}
+.tl-meta{font-size:11.5px; color:var(--slate-dim); font-family:'IBM Plex Mono',monospace; margin-top:2px;}
+
+/* line chart */
+.linechart-wrap{position:relative;}
+.linechart-wrap svg{width:100%; height:auto; display:block;}
+.chart-tooltip-label{font-family:'IBM Plex Mono',monospace; font-size:10px; fill:var(--slate-dim);}
+
+/* toast */
+#toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); opacity:0;
+  background:var(--chrome); color:#fff; padding:12px 18px; border-radius:10px; font-size:13px; font-weight:500;
+  display:flex; align-items:center; gap:8px; z-index:999; transition:.25s; box-shadow:0 10px 30px rgba(0,0,0,.25); pointer-events:none;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+#toast .dot{width:7px;height:7px;border-radius:50%;background:var(--verify);}
+
+.empty-note{color:var(--slate-dim); font-size:13px; padding:20px 0; text-align:center;}
+.section-title{font-size:16px; font-weight:600; margin:0 0 4px;}
+.section-sub{font-size:12.5px; color:var(--slate); margin:0 0 18px;}
+
+select.select-input{padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--card);font-size:13px;font-family:'IBM Plex Mono',monospace;color:var(--ink);}
+
+/* ================= NEW: notification bell ================= */
+.bell-btn{position:relative; width:36px;height:36px;border-radius:9px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:15px;}
+.bell-btn:hover{border-color:var(--ink);}
+.bell-badge{position:absolute; top:-4px; right:-4px; background:var(--red); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 3px; font-family:'IBM Plex Mono',monospace;}
+.notif-panel{position:absolute; top:56px; right:32px; width:340px; max-height:420px; overflow-y:auto; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); z-index:50; display:none;}
+.notif-panel.show{display:block;}
+.notif-head{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line);}
+.notif-head h4{margin:0; font-size:14px;}
+.notif-head button{background:none;border:none;font-size:11.5px;color:var(--verify);font-weight:600;}
+.notif-item{padding:12px 16px; border-bottom:1px solid var(--line); cursor:pointer; display:flex; gap:10px; align-items:flex-start;}
+.notif-item:last-child{border-bottom:none;}
+.notif-item:hover{background:var(--paper);}
+.notif-item.unread{background:#F7FBF9;}
+.notif-ic{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;background:var(--slate-dim);}
+.notif-ic.warning{background:var(--amber);}
+.notif-ic.success{background:var(--verify);}
+.notif-ic.alert{background:var(--red);}
+.notif-title{font-size:12.5px;font-weight:600;margin-bottom:2px;}
+.notif-msg{font-size:12px;color:var(--slate);line-height:1.5;}
+.notif-time{font-size:10.5px;color:var(--slate-dim);margin-top:3px;font-family:'IBM Plex Mono',monospace;}
+
+/* ================= NEW: modal ================= */
+.modal-backdrop{position:fixed; inset:0; background:rgba(18,23,43,.5); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+.modal-backdrop.show{display:flex;}
+.modal-box{background:var(--card); border-radius:16px; width:100%; max-width:460px; max-height:88vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal-head{display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid var(--line);}
+.modal-head h3{margin:0; font-size:16px;}
+.modal-close{background:none;border:none;font-size:18px;color:var(--slate);}
+.modal-body{padding:20px 22px;}
+.modal-foot{padding:16px 22px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px;}
+.field select{width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card); font-size:14px; color:var(--ink); font-family:'Inter',sans-serif;}
+.field-error{color:var(--red); font-size:11.5px; margin-top:4px; display:none;}
+.field-error.show{display:block;}
+.form-note{font-size:12px;color:var(--slate-dim); margin:2px 0 14px;}
+
+/* ================= NEW: camera / QR ================= */
+.cam-video{width:100%; max-width:280px; border-radius:12px; background:#000; z-index:1;}
+.cam-canvas{display:none;}
+.qr-box{background:#fff; padding:14px; border-radius:12px; z-index:1;}
+.qr-box img, .qr-box canvas{display:block; width:180px; height:180px;}
+.qr-meta{z-index:1; text-align:center; margin-top:10px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:rgba(255,255,255,.6);}
+.qr-meta b{color:var(--verify);}
+.method-tabs{display:flex; gap:8px; margin-bottom:14px;}
+.method-tab{flex:1; padding:9px; border-radius:9px; border:1px solid var(--line); background:var(--card); font-size:12.5px; font-weight:600; color:var(--slate);}
+.method-tab.active{background:var(--chrome); color:#fff; border-color:var(--chrome);}
+.demo-disclaimer{background:var(--amber-soft); color:#9c6a12; font-size:11.5px; padding:9px 12px; border-radius:9px; margin-top:12px; line-height:1.5;}
+
+/* ================= NEW: skeleton ================= */
+@keyframes shimmer{0%{background-position:-300px 0;}100%{background-position:300px 0;}}
+.skel{background:linear-gradient(90deg, var(--paper) 0%, #eceef2 50%, var(--paper) 100%); background-size:600px 100%; animation:shimmer 1.4s infinite linear; border-radius:8px;}
+.skel-line{height:14px; margin-bottom:10px; border-radius:6px;}
+.skel-kpi{height:88px; border-radius:14px;}
+
+/* ================= NEW: pagination / search / table controls ================= */
+.table-controls{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+.search-input{padding:9px 12px; border-radius:9px; border:1px solid var(--line); background:var(--card); font-size:13px; min-width:180px; flex:1;}
+.pagination{display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:14px; font-size:12px; color:var(--slate);}
+.pagination button{padding:6px 11px; border-radius:7px; border:1px solid var(--line); background:var(--card); font-size:12px; font-weight:600;}
+.pagination button:disabled{opacity:.4; cursor:not-allowed;}
+
+/* ================= NEW: misc ================= */
+.btn-danger{background:var(--red); color:#fff; border-color:var(--red);}
+.btn-danger:hover{background:#c74641;}
+.link-btn{background:none;border:none;color:var(--verify);font-weight:600;font-size:12.5px;padding:0;}
+.inline-actions{display:flex; gap:6px; flex-wrap:wrap;}
+.disabled-row td{opacity:.45;}
+.count-pill{font-size:11.5px;color:var(--slate-dim);font-family:'IBM Plex Mono',monospace;}
+.risk-badge.low{background:var(--verify-soft);color:var(--verify);}
+.risk-badge.medium{background:var(--amber-soft);color:#9c6a12;}
+.risk-badge.high{background:var(--red-soft);color:var(--red);}
+.insight-item{display:flex; gap:8px; font-size:12.5px; color:var(--slate); padding:8px 0; border-bottom:1px solid var(--line); line-height:1.5;}
+.insight-item:last-child{border-bottom:none;}
+.insight-dot{width:5px;height:5px;border-radius:50%;background:var(--verify);margin-top:6px;flex-shrink:0;}
+
+/* ---- timetable ---- */
+.tt-class-row{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 4px; border-bottom:1px solid var(--line);}
+.tt-class-row:last-child{border-bottom:none;}
+.tt-class-row.ongoing{border-left:3px solid var(--verify); padding-left:13px; background:var(--verify-soft); border-radius:0 10px 10px 0;}
+.tt-break-row{text-align:center; font-size:11.5px; color:var(--slate-dim); padding:8px 0;}
+.tt-week-scroll{overflow-x:auto;}
+.tt-week-grid{display:grid; grid-template-columns:repeat(6,minmax(130px,1fr)); gap:10px; min-width:800px;}
+.tt-day-col{display:flex; flex-direction:column; gap:7px;}
+.tt-day-head{font-size:12px; font-weight:700; color:var(--slate); text-align:center; padding:6px 0 10px; border-bottom:2px solid var(--line); margin-bottom:2px;}
+.tt-day-head.today{color:var(--verify); border-color:var(--verify);}
+.tt-slot{border:1px solid var(--line); border-radius:8px; padding:8px 9px; font-size:11px; background:var(--paper);}
+.tt-slot.ongoing{border-color:var(--verify); background:var(--verify-soft);}
+.tt-slot .t{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--slate-dim); margin-bottom:4px;}
+.tt-slot .sub{font-weight:600; color:var(--ink); margin-bottom:2px; line-height:1.3;}
+.tt-slot .meta{color:var(--slate); font-size:10.5px; line-height:1.4;}
+.tt-slot.tt-break{opacity:.65; text-align:center; padding:6px;}
+.spin{display:inline-block; width:13px; height:13px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; margin-right:6px; vertical-align:-2px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+button:disabled{opacity:.6; cursor:not-allowed;}
+.error-banner{background:var(--red-soft); color:var(--red); padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:14px;}
+.toast.error .dot{background:var(--red);}
+.session-live{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--verify); font-family:'IBM Plex Mono',monospace;}
+.session-live .pulse{width:7px;height:7px;border-radius:50%;background:var(--verify);animation:pulse 1.4s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(31,171,111,.5);}70%{box-shadow:0 0 0 7px rgba(31,171,111,0);}100%{box-shadow:0 0 0 0 rgba(31,171,111,0);}}
+
+/* ================= NEW: theme toggle ================= */
+.theme-toggle{
+  width:36px;height:36px;border-radius:9px;border:1px solid var(--line);background:var(--card);
+  display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:.15s;
+}
+.theme-toggle:hover{border-color:var(--chrome);}
+.login-theme-toggle{position:absolute; top:24px; right:24px; z-index:2;}
+@media(max-width:860px){ .login-theme-toggle{top:16px; right:16px;} }
+
+/* ==========================================================================
+   BATCH 5 — Mobile responsive enhancements.
+   Purely additive: every rule below lives inside a max-width media query, so
+   nothing here can ever apply above its breakpoint — the existing desktop
+   layout (>1024px, including 1920x1080 and 1366x768) is completely untouched.
+   Placed last so these rules win the cascade at their target widths without
+   needing to raise selector specificity anywhere.
+   Existing responsive foundation already in this file (kept as-is):
+     - @media(max-width:780px)  sidebar → horizontal pill mobile-nav
+     - @media(max-width:1000px) KPI/2-col grids collapse
+     - @media(max-width:860px)  login page single column
+   ========================================================================== */
+
+/* ---- Tablet (≤1024px): reclaim a little chrome, make wide tables safe ---- */
+@media(max-width:1024px){
+  .content{padding:22px;}
+  .topbar{padding:18px 22px;}
+  /* Every table in this app lives inside a .card. Letting the card scroll
+     horizontally keeps a wide table (7-8 columns) usable without forcing the
+     whole page to scroll sideways — .main already has overflow-x:hidden as a
+     backstop, so without this a too-wide table would simply get clipped. */
+  .card{overflow-x:auto;}
+}
+
+/* ---- Mobile (≤768px) ---- */
+@media(max-width:768px){
+  .content{padding:16px;}
+  .topbar{padding:14px 16px; gap:10px; flex-wrap:wrap; row-gap:8px;}
+  .topbar h2{font-size:17px;}
+  .topbar .sub{font-size:11.5px;}
+  .pill-date{display:none;} /* reclaim topbar space; not load-bearing info */
+  .notif-panel{right:16px; width:min(340px, calc(100vw - 32px));}
+  .grid{gap:12px;}
+  .card{padding:16px;}
+  .modal-box{max-width:calc(100vw - 24px);}
+  .modal-head{padding:14px 16px;}
+  .modal-body{padding:16px;}
+  .modal-foot{padding:12px 16px;}
+  .scan-panel{padding:18px;}
+  .login-form-side{padding:36px 26px;}
+  #signup-panel{padding:36px 26px;}
+}
+
+/* ---- Small phone (≤480px) ---- */
+@media(max-width:480px){
+  .g-4, .g-3, .g-2{grid-template-columns:1fr;}
+  .kpi .kpi-value{font-size:24px;}
+  /* Touch-friendly action buttons instead of a cramped row of tiny ones */
+  .btn-sm{padding:9px 14px; min-height:36px;}
+  .inline-actions{gap:8px;}
+  .inline-actions .btn-sm{flex:1 1 auto; min-width:76px;}
+  .table-controls .search-input{width:100%; min-width:0;}
+  .table-controls > select, .table-controls > input{width:100%;}
+  .method-tabs{flex-direction:column;}
+  .role-pills{flex-wrap:wrap;}
+  /* Stack modal actions full-width, primary action on top */
+  .modal-foot{flex-direction:column-reverse;}
+  .modal-foot button{width:100%;}
+  .login-form-side, #signup-panel{padding:28px 18px;}
+  .cam-video{max-width:100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="login-screen">
+  <button class="theme-toggle login-theme-toggle" id="login-theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode" type="button">🌙</button>
+  <div class="login-wrap">
+    <div class="login-form-side">
+      <div class="brandmark">
+        <img class="brand-logo" src="/assets/smvec-logo.png" alt="SMVEC logo">
+        <div>
+          <div class="brand-word">SMV Smart Attendance</div>
+          <div class="brand-sub">Sri Manakula Vinayagar Engineering College</div>
+        </div>
+      </div>
+
+      <h1>Sign in to your<br>attendance workspace.</h1>
+      <p class="lede">One system for identity-verified attendance across web, mobile and classroom — pick your role and sign in with your credentials.</p>
+
+      <div class="role-pills" id="role-pills"></div>
+
+      <div id="login-error" class="error-banner" style="display:none;"></div>
+
+      <form id="login-form">
+        <div class="field">
+          <label id="id-label">Register / Staff ID</label>
+          <input type="text" id="login-id" placeholder="e.g. 24UCS205" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-pw" placeholder="••••••••••" autocomplete="current-password">
+        </div>
+
+        <button class="btn-primary" type="submit" id="login-btn">
+          <span id="login-btn-label">Sign in</span> <span aria-hidden="true">→</span>
+        </button>
+      </form>
+      <p class="login-hint">Demo credentials — Student: 24UCS205 / student123 · Faculty: FAC-1042 / faculty123 · Admin: ADM-009 / admin123</p>
+      <div class="signup-link-row">New user? <button type="button" onclick="showSignup()" id="goto-signup-btn">Create an account</button></div>
+
+      <!-- ======== SIGN UP PANEL (hidden by default) ======== -->
+      <div id="signup-panel">
+        <h1>Create your<br>attendance account.</h1>
+        <p class="lede">Fill in your details below. Your account will be active immediately after registration.</p>
+
+        <div class="signup-role-tabs" id="signup-role-tabs">
+          <button type="button" class="signup-role-tab active" data-srole="student" onclick="selectSignupRole('student')">Student</button>
+          <button type="button" class="signup-role-tab" data-srole="faculty" onclick="selectSignupRole('faculty')">Faculty</button>
+          <button type="button" class="signup-role-tab" data-srole="admin" onclick="selectSignupRole('admin')">Admin</button>
+        </div>
+
+        <div id="signup-error" class="error-banner"></div>
+        <div id="signup-success"></div>
+
+        <form id="signup-form" autocomplete="off">
+          <!-- STUDENT FIELDS -->
+          <div class="signup-fields" id="sf-student">
+            <div class="field">
+              <label>Register Number</label>
+              <input type="text" id="su-reg" placeholder="e.g. 24UCS231" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Full Name</label>
+              <input type="text" id="su-student-name" placeholder="Your full name" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Email Address</label>
+              <input type="email" id="su-student-email" placeholder="you@college.edu" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Department</label>
+              <select id="su-student-dept"><option value="">Select department…</option></select>
+            </div>
+            <div class="field">
+              <label>Academic Year</label>
+              <select id="su-student-year"><option value="">Select academic year…</option></select>
+            </div>
+            <div class="field">
+              <label>Section</label>
+              <select id="su-student-sec"><option value="">Select department and year first…</option></select>
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" id="su-student-pw" placeholder="Min. 6 characters" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label>Confirm Password</label>
+              <input type="password" id="su-student-cpw" placeholder="Re-enter password" autocomplete="new-password">
+            </div>
+          </div>
+
+          <!-- FACULTY FIELDS -->
+          <div class="signup-fields" id="sf-faculty" style="display:none">
+            <div class="field">
+              <label>Faculty ID</label>
+              <input type="text" id="su-fac-id" placeholder="e.g. FAC-1099" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Full Name</label>
+              <input type="text" id="su-fac-name" placeholder="Your full name" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Email Address</label>
+              <input type="email" id="su-fac-email" placeholder="you@college.edu" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Department</label>
+              <select id="su-fac-dept"><option value="">Select department…</option></select>
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" id="su-fac-pw" placeholder="Min. 6 characters" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label>Confirm Password</label>
+              <input type="password" id="su-fac-cpw" placeholder="Re-enter password" autocomplete="new-password">
+            </div>
+          </div>
+
+          <!-- ADMIN FIELDS -->
+          <div class="signup-fields" id="sf-admin" style="display:none">
+            <div class="field">
+              <label>Admin ID</label>
+              <input type="text" id="su-adm-id" placeholder="e.g. ADM-010" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Full Name</label>
+              <input type="text" id="su-adm-name" placeholder="Your full name" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Email Address</label>
+              <input type="email" id="su-adm-email" placeholder="you@college.edu" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" id="su-adm-pw" placeholder="Min. 6 characters" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label>Confirm Password</label>
+              <input type="password" id="su-adm-cpw" placeholder="Re-enter password" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label>Admin Registration Key</label>
+              <input type="password" id="su-adm-key" placeholder="Provided by your system administrator" autocomplete="new-password">
+            </div>
+          </div>
+
+          <button class="btn-primary" type="submit" id="signup-btn" style="margin-top:4px;">
+            <span id="signup-btn-label">Create Account</span> <span aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <div class="signup-link-row" style="margin-top:16px;">Already have an account? <button type="button" onclick="showLogin()">Sign in</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app-screen">
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brandmark">
+        <img class="brand-logo" src="/assets/smvec-logo.png" alt="SMVEC logo">
+        <div class="brand-word">SMV Smart Attendance</div>
+      </div>
+      <div class="nav-section-label">WORKSPACE</div>
+      <div id="nav-items"></div>
+
+      <div class="sidebar-foot">
+        <div class="user-chip">
+          <div class="avatar" id="side-avatar">S</div>
+          <div>
+            <div class="name" id="side-name">—</div>
+            <div class="role" id="side-role">—</div>
+          </div>
+        </div>
+        <button class="signout-btn" style="margin-top:8px;" onclick="handleSignOut()">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="mobile-nav" id="mobile-nav"></div>
+      <div class="topbar">
+        <div>
+          <h2 id="page-title">Home</h2>
+          <div class="sub" id="page-sub">Overview</div>
+        </div>
+        <div class="topbar-right">
+          <div class="pill-date mono" id="today-date"></div>
+          <button class="theme-toggle" id="app-theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode" type="button">🌙</button>
+          <button class="bell-btn" id="bell-btn" onclick="toggleNotifPanel()">
+            🔔<span class="bell-badge" id="bell-badge" style="display:none;">0</span>
+          </button>
+        </div>
+      </div>
+      <div class="content" id="page-content"></div>
+    </main>
+  </div>
+
+  <div class="notif-panel" id="notif-panel">
+    <div class="notif-head">
+      <h4>Notifications</h4>
+      <button onclick="markAllNotifsRead()">Mark all read</button>
+    </div>
+    <div id="notif-list"></div>
+  </div>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-title">Title</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<div id="toast"><span class="dot"></span><span id="toast-msg"></span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
